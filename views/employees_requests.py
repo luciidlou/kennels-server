@@ -1,143 +1,181 @@
-EMPLOYEES = [
-    {
-        "id": 1,
-        "name": "Jordan Nelson",
-        "email": "jordan@nelson.com",
-        "location_id": 1
-    },
-    {
-        "id": 2,
-        "name": "Zoe LeBlanc",
-        "location_id": 1,
-        "email": "zoe@leblanc.com"
-    },
-    {
-        "id": 3,
-        "name": "Meg Ducharme",
-        "location_id": 2,
-        "email": "meg@ducharme.com"
-    },
-    {
-        "id": 5,
-        "name": "Hannah Hall",
-        "location_id": 2,
-        "email": "hannah@hall.com"
-    },
-    {
-        "id": 9,
-        "name": "Caitlin Stein",
-        "location_id": 2,
-        "email": "caitlin@stein.com"
-    },
-    {
-        "id": 10,
-        "name": "Greg Korte",
-        "location_id": 1,
-        "email": "greg@korte.com"
-    },
-    {
-        "id": 11,
-        "name": "Charisse Lambert",
-        "location_id": 1,
-        "email": "charisse@lambert.com"
-    },
-    {
-        "id": 14,
-        "name": "Jenna Solis",
-        "location_id": 2,
-        "email": "jenna@solis.com"
-    },
+import json
+import sqlite3
 
-    {
-        "id": 24,
-        "name": "Bobby Light",
-        "location_id": 2,
-        "email": "bobby@light.com"
-    },
-    {
-        "id": 26,
-        "name": "Freddy Newandyke",
-        "location_id": 1,
-        "email": "mrorange@reservoir.com"
-    }
-]
+from models import Employee, Location
 
 
 def get_all_employees():
-    """Returns all the employee dictionaries in the EMPLOYEES list
+    """Returns a list of all the employees in the database"""
+    # Open a connection to the database
+    with sqlite3.connect("./kennel.sqlite3") as conn:
 
-    Returns:
-        list: The EMPLOYEE list containing dictionaries of employees
-    """
-    return EMPLOYEES
+        # Just use these. It's a Black Box.
+        conn.row_factory = sqlite3.Row
+        db_cursor = conn.cursor()
+
+        # Write the SQL query to get the information you want
+        db_cursor.execute("""
+        SELECT
+            a.id,
+            a.name,
+            a.address,
+            a.location_id,
+            l.name location_name,
+            l.address location_address
+        FROM employee a
+        JOIN location l
+            ON l.id = a.location_id
+        """)
+
+        # Initialize an empty list to hold all employee representations
+        employees = []
+
+        # Convert rows of data into a Python list
+        dataset = db_cursor.fetchall()
+
+        # Iterate list of data returned from database
+        for row in dataset:
+
+            # Create an employee instance from the current row.
+            # Note that the database fields are specified in
+            # exact order of the parameters defined in the
+            # Employee class above.
+            employee = Employee(row['id'], row['name'],
+                                row['address'], row['location_id'])
+
+            location = Location(row['id'], row['location_name'], row['location_address'])
+
+            employee.location = location.__dict__
+
+            employees.append(employee.__dict__)
+
+    # Use `json` package to properly serialize list as JSON
+        return json.dumps(employees)
+
+
+def get_employees_by_location_id(location_id):
+    """Returns a a list of all the employees that have the corresponding location_id"""
+    # Open a connection to the database
+    with sqlite3.connect("./kennel.sqlite3") as conn:
+
+        # Just use these. It's a Black Box.
+        conn.row_factory = sqlite3.Row
+        db_cursor = conn.cursor()
+
+        # Write the SQL query to get the information you want
+        db_cursor.execute("""
+        SELECT
+            a.id,
+            a.name,
+            a.address,
+            a.location_id
+        FROM employee a
+        WHERE a.location_id = ?
+        """, (location_id, ))
+
+        # Initialize an empty list to hold all employee representations
+        employees = []
+
+        # Convert rows of data into a Python list
+        dataset = db_cursor.fetchall()
+
+        # Iterate list of data returned from database
+        for row in dataset:
+
+            # Create an employee instance from the current row.
+            # Note that the database fields are specified in
+            # exact order of the parameters defined in the
+            # Employee class above.
+            employee = Employee(row['id'], row['name'],
+                                row['address'], row['location_id'])
+
+            employees.append(employee.__dict__)
+
+    # Use `json` package to properly serialize list as JSON
+    return json.dumps(employees)
 
 # Function with a single parameter
 
 
 def get_single_employee(id):
-    """Gives us back the employee dictionary with the corresponding id
+    """Returns the employee with the corresponding primary key (id)"""
+    with sqlite3.connect("./kennel.sqlite3") as conn:
+        conn.row_factory = sqlite3.Row
+        db_cursor = conn.cursor()
 
-    Args:
-        id (int): The id of the employee dictionary we want to GET from the API
+        # Use a ? parameter to inject a variable's value
+        # into the SQL statement.
+        db_cursor.execute("""
+        SELECT
+            a.id,
+            a.name,
+            a.address,
+            a.location_id
+        FROM employee a
+        WHERE a.id = ?
+        """, (id, ))
 
-    Returns:
-        dictionary: the dictionary with the corresponding id we passed into the function call
-    """
-    # Variable to hold the found employee, if it exists
-    requested_employee = None
+        # Load the single result into memory
+        data = db_cursor.fetchone()
 
-    # Iterate the EMPLOYEES list above. Very similar to the
-    # for..of loops you used in JavaScript.
-    for employee in EMPLOYEES:
-        # Dictionaries in Python use [] notation to find a key
-        # instead of the dot notation that JavaScript used.
-        if employee["id"] == id:
-            requested_employee = employee
+        # Create an employee instance from the current row
+        employee = Employee(data['id'], data['name'],
+                            data['address'], data['location_id'])
 
-    return requested_employee
+        return json.dumps(employee.__dict__)
 
 
-def create_employee(employee):
-    """Creates a new employee dictionary and appends it to the EMPLOYEES list
+def create_employee(new_employee):
+    """Adds a new employee to the employee list"""
+    with sqlite3.connect("./kennels.sqlite3") as conn:
+        db_cursor = conn.cursor()
 
-    Args:
-        employee (dictionary): the employee dictionary we want to POST to the API
+        db_cursor.execute("""
+        INSERT INTO Employee
+            (name, address, location_id)
+        VALUES (?, ?, ?);
+    """, (new_employee['name'], new_employee['address'], new_employee['location_id']))
 
-    Returns:
-        dictionary: the employee dictionary we passed into the function
-    """
-    max_id = EMPLOYEES[-1]["id"]
-    new_id = max_id + 1
-    employee["id"] = new_id
-    EMPLOYEES.append(employee)
-    return employee
+        id = db_cursor.lastrowid
+
+        new_employee['id'] = id
+
+    return json.dumps(new_employee)
 
 
 def delete_employee(id):
-    """DELETES the employee with the corresponding id
+    """Deletes the employee with the corresponding primary key (id)"""
+    with sqlite3.connect("./kennel.sqlite3") as conn:
+        db_cursor = conn.cursor()
 
-    Args:
-        id (int): the id of the employee dictionary we want to DELETE from the EMPLOYEES list
-    """
-    employee_index = -1
-    for index, employee in enumerate(EMPLOYEES):
-        if employee["id"] == id:
-            employee_index = index
-    if employee_index >= 0:
-        EMPLOYEES.pop(employee_index)
+        db_cursor.execute("""
+        DELETE FROM employee
+        WHERE id = ?
+        """, (id, ))
 
 
 def update_employee(id, new_employee):
-    """updates an existing employee dictionary
+    """Updates the employee with the corresponding primary key (id)"""
+    with sqlite3.connect("./kennel.sqlite3") as conn:
+        db_cursor = conn.cursor()
 
-    Args:
-        id (int): the id of the employee dictionary we want to alter
-        new_employee (dictionary): the new employee with the updated key:value pairs
-    """
-    # Iterate the EMPLOYEES list, but use enumerate() so that
-    # you can access the index value of each item.
-    for index, employee in enumerate(EMPLOYEES):
-        if employee["id"] == id:
-            # Found the employee. Update the value.
-            EMPLOYEES[index] = new_employee
-            break
+        db_cursor.execute("""
+        UPDATE Employee
+            SET
+                name = ?,
+                address = ?,
+                location_id = ?
+        WHERE id = ?
+        """, (new_employee['name'], new_employee['address'],
+              new_employee['location_id'], id, ))
+
+        # Were any rows affected?
+        # Did the client send an `id` that exists?
+        rows_affected = db_cursor.rowcount
+
+    if rows_affected == 0:
+        # Forces 404 response by main module
+        return False
+    else:
+        # Forces 204 response by main module
+        return True

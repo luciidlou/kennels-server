@@ -39,7 +39,7 @@ class HandleRequests(BaseHTTPRequestHandler):
         """parses the url we are using to communicate with the API
 
         Returns:
-            tuple: (resource, id) || (resource, key, value)
+            tuple: the parsed values from the url
         """
         path_params = self.path.split("/")
         resource = path_params[1]
@@ -157,24 +157,26 @@ class HandleRequests(BaseHTTPRequestHandler):
 
         # Initialize new animal
         new_animal = None
+        new_location = None
+        new_employee = None
+        new_customer = None
 
         # Add a new animal to the list. Don't worry about
         # the orange squiggle, you'll define the create_animal
         # function next.
         if resource == "animals":
             new_animal = create_animal(post_body)
+            # Encode the new animal and send in response
+            self.wfile.write(f"{new_animal}".encode())
         elif resource == "locations":
             new_location = create_location(post_body)
+            self.wfile.write(f"{new_location}".encode())
         elif resource == "employees":
-            new_employee = create_employee(post_body)
+            new_employee = create_emplo                                  yee(post_body)
+            self.wfile.write(f"{new_employee}".encode())
         elif resource == "customers":
             new_customer = create_customer(post_body)
-
-            # Encode the new animal and send in response
-        self.wfile.write(f"{new_animal}".encode())
-        self.wfile.write(f"{new_location}".encode())
-        self.wfile.write(f"{new_employee}".encode())
-        self.wfile.write(f"{new_customer}".encode())
+            self.wfile.write(f"{new_customer}".encode())
 
     def do_PUT(self):
         """Handles the PUT request to the server
@@ -184,7 +186,7 @@ class HandleRequests(BaseHTTPRequestHandler):
         post_body = json.loads(post_body)
 
         # Parse the URL
-        resource, id = self.parse_url() # pylint: disable=unbalanced-tuple-unpacking
+        resource, id = self.parse_url()  # pylint: disable=unbalanced-tuple-unpacking
 
         success = False
 
@@ -211,7 +213,7 @@ class HandleRequests(BaseHTTPRequestHandler):
         self._set_headers(204)
 
         # Parse the URL
-        resource, id = self.parse_url() # pylint: disable=unbalanced-tuple-unpacking
+        resource, id = self.parse_url()  # pylint: disable=unbalanced-tuple-unpacking
 
         # Delete a single animal from the list
         if resource == "animals":
